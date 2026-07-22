@@ -1,5 +1,10 @@
 package com.niteshmishra.payflow.controller;
 
+import com.niteshmishra.payflow.dto.PaymentRequestDto;
+import com.niteshmishra.payflow.dto.PaymentResponseDto;
+import com.niteshmishra.payflow.service.PaymentService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -7,13 +12,15 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/payments")
 public class PaymentController {
 
-    @GetMapping("/ping")
-    public ResponseEntity<String> ping() {
-        return ResponseEntity.ok("PayFlow is alive");
+    private final PaymentService paymentService;
+
+    public PaymentController(PaymentService paymentService) {
+        this.paymentService = paymentService;
     }
 
     @PostMapping
-    public ResponseEntity<String> createPayment(@RequestBody String rawBody) {
-        return ResponseEntity.ok("Received payment request: " + rawBody);
+    public ResponseEntity<PaymentResponseDto> createPayment(@Valid @RequestBody PaymentRequestDto request) {
+        PaymentResponseDto response = paymentService.createPayment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
