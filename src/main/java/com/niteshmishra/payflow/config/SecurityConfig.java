@@ -14,9 +14,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
+    public SecurityConfig(ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -26,14 +29,17 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/admin/login").permitAll()
                         .requestMatchers("/api/payments/**").authenticated()
+                        .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
-                                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Invalid or missing API key"))
+                                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Invalid or missing credentials"))
                 )
-                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
