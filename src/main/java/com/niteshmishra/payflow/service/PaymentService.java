@@ -9,6 +9,7 @@ import com.niteshmishra.payflow.repository.*;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -90,12 +91,11 @@ public class PaymentService {
     }
 
     private void creditMerchantWallet(Merchant merchant, BigDecimal amount) {
-        Wallet wallet = walletRepository.findByMerchantId(merchant.getId())
+        Wallet wallet = walletRepository.findByMerchantIdForUpdate(merchant.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "No wallet found for merchant id " + merchant.getId()));
 
         wallet.setBalance(wallet.getBalance().add(amount));
         walletRepository.save(wallet);
     }
-
 } // ← this closing brace ends the PaymentService class itself
