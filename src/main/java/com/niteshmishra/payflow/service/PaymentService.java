@@ -36,7 +36,7 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResponseDto createPayment(PaymentRequestDto request) {
+    public PaymentResponseDto createPayment(PaymentRequestDto request, Long authenticatedMerchantId) {
 
         Optional<Transaction> existing =
                 transactionRepository.findByIdempotencyKey(request.getIdempotencyKey());
@@ -44,9 +44,9 @@ public class PaymentService {
             return transactionMapper.toResponseDto(existing.get());
         }
 
-        Merchant merchant = merchantRepository.findById(request.getMerchantId())
+        Merchant merchant = merchantRepository.findById(authenticatedMerchantId)
                 .orElseThrow(() -> new MerchantNotFoundException(
-                        "No merchant found with id " + request.getMerchantId()));
+                        "No merchant found with id " + authenticatedMerchantId));
 
         Transaction transaction = new Transaction();
         transaction.setMerchant(merchant);
@@ -72,30 +72,5 @@ public class PaymentService {
         savedTransaction = transactionRepository.save(savedTransaction);
 
         return transactionMapper.toResponseDto(savedTransaction);
-    }
-
-    private void createLedgerEntries(Transaction transaction) {
-        LedgerEntry debitEntry = new LedgerEntry();
-        debitEntry.setTransaction(transaction);
-        debitEntry.setAccountType(LedgerAccountType.CUSTOMER_SUSPENSE);
-        debitEntry.setEntryType(LedgerEntryType.DEBIT);
-        debitEntry.setAmount(transaction.getAmount());
-        ledgerEntryRepository.save(debitEntry);
-
-        LedgerEntry creditEntry = new LedgerEntry();
-        creditEntry.setTransaction(transaction);
-        creditEntry.setAccountType(LedgerAccountType.MERCHANT_WALLET);
-        creditEntry.setEntryType(LedgerEntryType.CREDIT);
-        creditEntry.setAmount(transaction.getAmount());
-        ledgerEntryRepository.save(creditEntry);
-    }
-
-    private void creditMerchantWallet(Merchant merchant, BigDecimal amount) {
-        Wallet wallet = walletRepository.findByMerchantIdForUpdate(merchant.getId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "No wallet found for merchant id " + merchant.getId()));
-
-        wallet.setBalance(wallet.getBalance().add(amount));
-        walletRepository.save(wallet);
     }
 } // ← this closing brace ends the PaymentService class itself
