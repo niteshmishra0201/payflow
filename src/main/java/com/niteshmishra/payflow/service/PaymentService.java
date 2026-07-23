@@ -9,7 +9,6 @@ import com.niteshmishra.payflow.repository.*;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -73,4 +72,29 @@ public class PaymentService {
 
         return transactionMapper.toResponseDto(savedTransaction);
     }
-} // ← this closing brace ends the PaymentService class itself
+
+    private void createLedgerEntries(Transaction transaction) {
+        LedgerEntry debitEntry = new LedgerEntry();
+        debitEntry.setTransaction(transaction);
+        debitEntry.setAccountType(LedgerAccountType.CUSTOMER_SUSPENSE);
+        debitEntry.setEntryType(LedgerEntryType.DEBIT);
+        debitEntry.setAmount(transaction.getAmount());
+        ledgerEntryRepository.save(debitEntry);
+
+        LedgerEntry creditEntry = new LedgerEntry();
+        creditEntry.setTransaction(transaction);
+        creditEntry.setAccountType(LedgerAccountType.MERCHANT_WALLET);
+        creditEntry.setEntryType(LedgerEntryType.CREDIT);
+        creditEntry.setAmount(transaction.getAmount());
+        ledgerEntryRepository.save(creditEntry);
+    }
+
+    private void creditMerchantWallet(Merchant merchant, BigDecimal amount) {
+        Wallet wallet = walletRepository.findByMerchantIdForUpdate(merchant.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "No wallet found for merchant id " + merchant.getId()));
+
+        wallet.setBalance(wallet.getBalance().add(amount));
+        walletRepository.save(wallet);
+    }
+}
